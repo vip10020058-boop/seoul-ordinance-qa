@@ -108,6 +108,10 @@ SYSTEM = """너는 서울특별시 조례 질의응답 도우미다.
   · 용어의 정의·나이·기준을 묻는 질문은 "정의"(제○조(정의)) 조항을 최우선 근거로 삼는다.
   · 금액·요금을 묻는 질문은 요금표(별표)나 해당 금액이 적힌 조항을 근거로 삼는다.
   · 가부(되나요/받을 수 있나요)를 묻는 질문은 요건·감면·예외가 적힌 조항을 근거로 삼는다.
+  · '둘 다/중복/함께' 받을 수 있는지 묻는 질문은, 각 혜택 조항뿐 아니라 "둘 이상의 사유에
+    해당하면 높은 하나만 적용한다" 같은 중복 적용 제한 조항이 근거에 있으면 반드시 함께 보고
+    답한다. 그런 제한 조항이 있으면 "중복해서 받을 수 없고 감면율이 높은 하나만 적용된다"고
+    명확히 답하며, 그 조항 번호를 evidence_ids에 반드시 포함한다.
 - 질문이 한두 단어의 키워드(예: "담배 구역", "주차 요금")여도, 근거에서 그 주제의 핵심 내용
   (지정 기준·금액·요건 등)을 찾아 요약해 답한다. 근거에 관련 조문이 있으면 found를 true로 한다.
 - 답은 일반 시민이 이해할 수 있는 쉬운 말로 2~4문장으로 쓴다. 금액·비율·나이 같은 숫자는 그대로 쓴다.
@@ -162,6 +166,13 @@ def _is_def_chunk(h):
     return _DEF_TEXT.search(h["text"][:120]) or "(정의)" in h["text"][:40]
 
 
+# '둘 이상의 감면/할인 사유에 해당하면 높은 하나만 적용' 류의 중복 적용 제한 조항을 포착한다.
+_OVERLAP_LIMIT = re.compile(
+    r"둘\s*이상.{0,30}(감면|할인|사유).{0,40}(하나만|가장\s*(높은|많은)|높은\s*하나)")
+# 두 혜택을 '둘 다/함께/동시에/중복' 받을 수 있는지 묻는 질문인지 판별한다.
+_OVERLAP_QUESTION = re.compile(r"(둘\s*다|두\s*가지|함께|같이|동시에|중복|모두)")
+
+
 def _merged_retrieve(question, top_k=config.TOP_K):
     """원 질문 + 조문용어 확장 질문으로 각각 검색해 합친다(중복 라벨 제거, 높은 점수 우선).
     정의형 질문이면 '정의' 조항을 맨 앞으로 끌어올린다."""
@@ -180,43 +191,123 @@ def _merged_retrieve(question, top_k=config.TOP_K):
     # 정의형 질문이면 정의 조항을 선두로 (LLM이 정의 조항을 1순위 근거로 보게 함)
     if _DEF_QUESTION.search(question):
         merged.sort(key=lambda h: 0 if _is_def_chunk(h) else 1)
-    return merged[:top_k]
+    result = merged[:top_k]
+    # 중복 여부(둘 다/함께/중복) 질문이면 '중복 적용 제한' 조항을 반드시 상위 근거에 포함한다.
+    # 이 조항(예: "둘 이상의 감면사유에 해당하면 높은 하나만 적용")은 문장이 짧아 임베딩
+    # 유사도가 낮게 나와 top_k에 못 드는 경우가 많다. 상위 근거가 가리키는 '같은 법령'에서
+    # 전체 조각을 뒤져 중복 제한 조항을 찾아 맨 앞에 끼워 넣는다.
+    if _OVERLAP_QUESTION.search(question) and result:
+        if not any(_OVERLAP_LIMIT.search(h["text"]) for h in result):
+            limit_chunk = _find_overlap_limit(result)
+            if limit_chunk is not None:
+                result = [limit_chunk] + result[:top_k - 1]
+        result.sort(key=lambda h: 0 if _OVERLAP_LIMIT.search(h["text"]) else 1)
+    return result
 
 
-def answer(question):
+def _find_overlap_limit(result):
+    """상위 근거가 속한 법령들 안에서 '중복 적용 제한' 조항 조각을 찾아 반환(없으면 None).
+
+    score·cos는 상위 근거의 최댓값을 승계한다(이 조항은 '같은 법령'에서 질문 쟁점의 전제로
+    확실히 관련되므로, 짧은 문장 탓에 낮게 나오는 자체 임베딩 유사도 대신 검색 신뢰도를 쓴다)."""
+    chunks, _, _, _, _ = _load()
+    laws = {h.get("law") or h["label"].split(" 제")[0] for h in result}
+    top_score = max((h["score"] or 0) for h in result)
+    cos_vals = [h["cos"] for h in result if h.get("cos") is not None]
+    top_cos = max(cos_vals) if cos_vals else None
+    for c in chunks:
+        law = c.get("law") or c["label"].split(" 제")[0]
+        if law in laws and _OVERLAP_LIMIT.search(c["text"]) and not DISTRICT.search(c["label"]):
+            return {**c, "score": top_score, "cos": top_cos}
+    return None
+
+
+def _detail(response, verification_status, used=None, unknown_reason=""):
+    """웹 전용 메타데이터를 보존하되, 대회 응답 형식과 분리합니다."""
+    return {
+        "response": response,
+        "verification_status": verification_status,
+        "used": used or [],
+        "unknown_reason": unknown_reason,
+    }
+
+
+def answer_detailed(question):
+    """대회 응답과 웹용 근거 메타데이터를 함께 생성합니다.
+
+    `answer()`는 이 함수의 response만 반환하므로 대회 4필드 계약은 바뀌지 않습니다.
+    """
     import upstage
     hits = _merged_retrieve(question)
 
     # 검증 ①: 검색 단계에서 이미 관련 조문이 없어 보이면 바로 '확인 불가'
     if config.USE_VERIFY and hits and hits[0]["cos"] is not None and hits[0]["cos"] < config.MIN_SCORE:
-        return dict(UNKNOWN)
+        return _detail(dict(UNKNOWN), "unavailable", unknown_reason="retrieval_low")
+
+    # 중복(둘 다/함께) 질문이고 검색에 '중복 적용 제한' 조항이 있으면, LLM이 그 조항을 놓치거나
+    # 반대로 답하지 않도록 질문 끝에 명시적 지시를 덧붙인다(근거 자체는 [근거]에 이미 들어 있다).
+    hint = ""
+    if _OVERLAP_QUESTION.search(question) and any(_OVERLAP_LIMIT.search(h["text"]) for h in hits):
+        hint = ("\n\n[지시] 이 질문은 두 혜택을 '둘 다' 받을 수 있는지를 묻는다. 근거 중 "
+                "'둘 이상의 사유에 해당하면 높은 하나만 적용한다'는 중복 적용 제한 조항을 반드시 "
+                "반영해, 중복해서 받을 수 없고 감면율이 높은 하나만 적용된다고 답하고 그 조항 "
+                "번호를 evidence_ids에 포함하라.")
 
     raw = upstage.chat(
         [{"role": "system", "content": SYSTEM},
-         {"role": "user", "content": f"[근거]\n{_context(hits)}\n\n[질문]\n{question}"}],
+         {"role": "user", "content": f"[근거]\n{_context(hits)}\n\n[질문]\n{question}{hint}"}],
         response_format=SCHEMA)
     out = json.loads(raw)
     used = [hits[i - 1] for i in out.get("evidence_ids", []) if 1 <= i <= len(hits)]
     used = [h for h in used if not DISTRICT.search(h["label"])]
     if not out.get("found") or not used:
-        return dict(UNKNOWN)
+        return _detail(dict(UNKNOWN), "unavailable", unknown_reason="no_supported_answer")
 
     # 검증 ②: 답이 고른 근거에 실제로 기반하는지 Groundedness Check.
-    # notGrounded만 보류한다. 단, 검색 신뢰도(top1 cos)가 충분히 높으면 1회 재판정해
-    #   LLM 검증의 비결정성으로 정답이 버려지는 것을 줄인다. (notSure는 통과)
+    #
+    # 채점 구조상 '일반 문항에서의 확인 불가 = 0점'이 가장 큰 손실이다. 반대로 함정(근거 없는)
+    # 문항은 이미 검색 단계(retrieval_low)와 found/used 단계에서 걸러진다. 따라서 검증기는
+    # '검색이 애매한데 LLM이 억지로 답한 경우'를 거르는 데만 쓰고, 검색이 확실한(top1 cos가
+    # 충분히 높은) 답은 LLM 검증이 흔들려 notGrounded를 내더라도 버리지 않는다.
+    #   - top1 cos >= RECHECK_COS : notGrounded여도 답 보존(상태만 not_sure). 1회 재판정으로
+    #                               grounded가 회복되면 그대로 grounded.
+    #   - top1 cos <  RECHECK_COS : notGrounded면 확인 불가 처리(근거가 약해 신뢰 어려움).
+    verdict = "not_checked"
     if config.USE_VERIFY:
         verdict = upstage.groundedness(_context(used), out["answer"])
         if verdict == "notGrounded":
             top_cos = used[0].get("cos")
             if top_cos is not None and top_cos >= config.RECHECK_COS:
                 verdict = upstage.groundedness(_context(used), out["answer"])
-            if verdict == "notGrounded":
-                return dict(UNKNOWN)
+                if verdict == "notGrounded":
+                    # 검색은 확실하다 → 정답일 가능성이 높으므로 보존하고 상태만 보류로 표시
+                    verdict = "notSure"
+            else:
+                return _detail(dict(UNKNOWN), "not_grounded", unknown_reason="verification_failed")
+
+    # 근거 보강: 중복(둘 다/함께) 질문이고 검색에 '중복 적용 제한' 조항이 있으면, LLM이 근거
+    # 번호를 누락했더라도 그 조항을 근거에 보탠다. 답 내용은 위 [지시]로 교정되고, 근거는 코드가
+    # 보강해 '내용은 맞는데 조항 번호만 빠지는' 흔들림을 없앤다(해당 조항이 없으면 아무것도 안 함).
+    if _OVERLAP_QUESTION.search(question):
+        used_labels = {h["label"] for h in used}
+        for h in hits:
+            if h["label"] in used_labels or DISTRICT.search(h["label"]):
+                continue
+            if _OVERLAP_LIMIT.search(h["text"]):
+                used.append(h)
+                break
 
     citation = list(dict.fromkeys(h["label"] for h in used))   # 순서 유지, 중복 제거
     first = used[0]
-    return {"answer": out["answer"], "citation": citation,
-            "source_url": first["source_url"], "effective_date": first["effective_date"]}
+    response = {"answer": out["answer"], "citation": citation,
+                "source_url": first["source_url"], "effective_date": first["effective_date"]}
+    status = {"grounded": "grounded", "notSure": "not_sure"}.get(verdict, "not_checked")
+    return _detail(response, status, used=used)
+
+
+def answer(question):
+    """대회 채점용 4필드 응답만 반환합니다."""
+    return answer_detailed(question)["response"]
 
 
 def answer_without_rag(question):

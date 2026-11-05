@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 import config
 import rag
+import ui_service
 
 app = FastAPI(title="서울시 조례 Q&A")
 log = logging.getLogger("uvicorn.error")
@@ -47,3 +48,24 @@ async def ask(req: Ask):
     except Exception as e:  # noqa: BLE001  시간 초과·API 오류 모두 '확인 불가'로 응답
         log.warning("ask failed: %r", e)
         return dict(rag.UNKNOWN)
+
+
+@app.post("/ui/ask")
+async def ui_ask(req: Ask):
+    """시민용 화면 전용 응답. 대회 채점용 `/ask` 계약과 분리합니다."""
+    try:
+        return await asyncio.wait_for(asyncio.to_thread(ui_service.answer, req.question),
+                                      timeout=config.ANSWER_TIMEOUT_SEC)
+    except Exception as e:  # noqa: BLE001
+        log.warning("ui ask failed: %r", e)
+        return {
+            **dict(rag.UNKNOWN),
+            "needs_clarification": False,
+            "clarification_options": [],
+            "verification_status": "unavailable",
+            "unknown_reason": "server_error",
+            "evidence": [],
+            "checklist": [],
+            "follow_up_questions": [],
+            "searched_laws": [],
+        }

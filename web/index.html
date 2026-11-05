@@ -131,13 +131,25 @@
   .msg-ai.active { border-color: #cdd5e2; background: #fbfcfe; }
   .status { font-size: 0.8rem; margin-bottom: 6px; }
   .status.grounded { color: var(--ok); }
-  .status.unavailable { color: var(--danger); }
+  .status.not_sure, .status.not_checked, .status.clarification { color: var(--warn); }
+  .status.not_grounded, .status.unavailable { color: var(--danger); }
   .banner { border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; font-size: 0.84rem; }
   .banner.demo { background: #fdf3e3; color: var(--warn); }
   .banner.withheld { background: #fbe9e8; color: var(--danger); }
   .ans-block { margin: 0 0 10px; }
   .ans-raw { white-space: pre-wrap; }
-  .msg-tools { display: flex; justify-content: flex-start; gap: 6px; margin-top: 6px; }
+  .choice-box, .action-box { margin-top: 14px; padding: 13px 14px; border-radius: 10px; background: #f7f8fb; border: 1px solid var(--line); }
+  .choice-title, .action-title { font-size: 0.82rem; font-weight: 800; color: var(--navy); margin-bottom: 8px; }
+  .choice-list, .follow-list { display: flex; flex-wrap: wrap; gap: 7px; }
+  .choice, .follow {
+    background: #fff; border: 1px solid #cfd6e3; color: #34435c; border-radius: 999px;
+    padding: 6px 11px; font: inherit; font-size: 0.79rem; cursor: pointer; text-align: left;
+  }
+  .choice:hover, .follow:hover { border-color: var(--navy); background: #f0f3f8; }
+  .check-list { margin: 0; padding-left: 21px; }
+  .check-list li { margin: 3px 0; font-size: 0.86rem; color: #3a3f47; }
+  .follow-wrap { margin-top: 12px; }
+  .msg-tools { display: flex; justify-content: flex-start; gap: 6px; margin-top: 8px; }
   .mini {
     background: #fff; border: 1px solid var(--line); border-radius: 7px; padding: 3px 10px;
     font: inherit; font-size: 0.76rem; color: #4a4f59; cursor: pointer;
@@ -157,8 +169,11 @@
   .ev-card.primary { border: 1.5px solid var(--navy); }
   .ev-title { font-weight: 700; margin: 0 0 4px; }
   .ev-title .idx { color: var(--navy); margin-right: 4px; }
-  .ev-meta { color: var(--muted); font-size: 0.78rem; margin-bottom: 4px; }
+  .ev-meta { color: var(--muted); font-size: 0.78rem; margin-bottom: 8px; }
   .ev-meta a { color: var(--navy); text-decoration: none; border-bottom: 1px solid var(--navy); }
+  .ev-body { font-size: 0.84rem; line-height: 1.65; color: #3a3f47; white-space: pre-wrap; max-height: 260px; overflow: auto; padding: 10px 11px; background: #f7f8fa; border-radius: 7px; }
+  .ev-body mark { background: #fff0a8; color: inherit; border-radius: 2px; padding: 0 1px; }
+  .ev-note { margin-top: 6px; font-size: 0.73rem; color: var(--muted); }
   .ev-empty { color: var(--muted); font-size: 0.86rem; }
 
   @media (max-width: 1000px) {
@@ -323,11 +338,11 @@
 
     <section class="chat hidden" id="chatView">
       <div class="chat-col">
-        <div class="thread" id="thread"><div class="thread-inner" id="threadInner"></div></div>
+        <div class="thread" id="thread"><div class="thread-inner" id="threadInner" aria-live="polite"></div></div>
         <div class="chat-bottom">
           <div class="wrap">
             <div class="composer">
-              <textarea id="chatInput" rows="1" maxlength="500" placeholder="이어서 질문하세요"></textarea>
+              <textarea id="chatInput" rows="1" maxlength="500" placeholder="새 질문을 입력하세요"></textarea>
               <button class="send" id="chatSend" title="질문하기">↑</button>
             </div>
             <div class="composer-meta">
@@ -336,7 +351,7 @@
               <span class="char-count" id="chatCount">0 / 500</span>
             </div>
             <div class="disclaimer">
-              서울특별시 조례 정보 안내 도구이며 법률 자문이 아닙니다. 중요한 사안은 공식 원문과 전문가를 통해 확인하세요.
+              서울특별시 조례 정보 안내 도구이며 법률 자문이 아닙니다. 각 질문은 독립적으로 처리됩니다. 중요한 사안은 공식 원문과 전문가를 통해 확인하세요.
             </div>
           </div>
         </div>
@@ -376,16 +391,35 @@ const SUGGESTS = [
 ];
 
 const STATUS_TEXT = {
-  grounded:    ["✅ 근거 확인", "서울시 조례 조문에 근거한 답변입니다."],
-  unavailable: ["⛔ 확인 불가", "6종 조례에서 근거를 찾지 못했습니다."]
+  grounded:     ["✅ 조문 검증 통과", "답변의 핵심 내용이 선택된 조문으로 확인됐습니다."],
+  not_sure:     ["🟡 원문 확인 권장", "관련 조항은 찾았지만 일부 해석은 원문 확인이 필요합니다."],
+  not_checked:  ["📎 근거 조항 연결", "관련 조항이 연결됐으며 최종 판단은 원문을 확인해 주세요."],
+  clarification:["💬 질문을 구체화해 주세요", "아래에서 알고 싶은 내용을 선택할 수 있습니다."],
+  not_grounded: ["⛔ 답변 보류", "생성된 답변이 조문으로 충분히 뒷받침되지 않았습니다."],
+  unavailable:  ["⛔ 확인 불가", "6종 조례에서 근거를 찾지 못했습니다."]
 };
 
 const $ = id => document.getElementById(id);
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+function regexEsc(s){return String(s).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");}
+function highlightExcerpt(text, terms){
+  const words=[...new Set((terms||[]).filter(Boolean))].sort((a,b)=>b.length-a.length);
+  if(!words.length) return esc(text);
+  const re=new RegExp(words.map(regexEsc).join("|"),"g");
+  let html="", last=0;
+  for(const m of String(text).matchAll(re)){
+    html+=esc(String(text).slice(last,m.index))+`<mark>${esc(m[0])}</mark>`;
+    last=m.index+m[0].length;
+  }
+  return html+esc(String(text).slice(last));
+}
+function questionButtons(items, className){
+  return (items||[]).map(q=>`<button class="${className}" type="button" data-question="${esc(q)}">${esc(q)}</button>`).join("");
+}
 
 /* ===========================================================================
-   백엔드 연동 — 대회 스타터킷 서버 규격 (/health, /ask)
-   응답: { answer, citation[], source_url, effective_date }
+   백엔드 연동 — 시민용 상세 API (/ui/ask)
+   채점용 /ask는 4필드 계약 그대로 별도 유지합니다.
    =========================================================================== */
 let BACKEND=false;
 async function detectBackend(){
@@ -393,18 +427,22 @@ async function detectBackend(){
   catch(e){return null;}
 }
 async function callBackend(q){
-  const r=await fetch("/ask",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question:q})});
+  const r=await fetch("/ui/ask",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question:q})});
   if(!r.ok){throw new Error("서버 오류 "+r.status);}
   const d=await r.json();
   const answer=d.answer||"";
-  const unknown=answer.startsWith("확인 불가")||!(d.citation&&d.citation.length);
   return {
     answer,
     citation: d.citation||[],
     source_url: d.source_url||"",
     effective_date: d.effective_date||"",
-    verdict: unknown ? "unavailable" : "grounded",
-    searchedLaws: [...new Set((d.citation||[]).map(c => (c.match(/서울특별시[^ ]*(?:조례|규칙)/)||[c])[0]))]
+    verdict: d.verification_status||"unavailable",
+    needs_clarification: !!d.needs_clarification,
+    clarification_options: d.clarification_options||[],
+    evidence: d.evidence||[],
+    checklist: d.checklist||[],
+    follow_up_questions: d.follow_up_questions||[],
+    searchedLaws: d.searched_laws||[]
   };
 }
 
@@ -417,17 +455,25 @@ function showChat(){ $("homeView").classList.add("hidden"); $("chatView").classL
 function showHome(){ $("chatView").classList.add("hidden"); $("homeView").classList.remove("hidden"); }
 
 function renderAnswerHtml(result){
-  let b="";
-  const unknown = result.verdict==="unavailable";
-  if(unknown) b+=`<div class="banner withheld">⚠️ 6종 조례에서 근거를 찾지 못했습니다. 다른 표현으로 질문하거나 공식 원문을 확인하세요.</div>`;
+  let banners="";
   const key=result.verdict||"unavailable";
+  const unknown=key==="unavailable"||key==="not_grounded";
+  if(unknown) banners+=`<div class="banner withheld">⚠️ 6종 조례에서 답을 뒷받침할 근거를 확정하지 못했습니다. 아래 관련 질문을 선택하거나 공식 원문을 확인하세요.</div>`;
+
   const [lab,help]=STATUS_TEXT[key]||STATUS_TEXT.unavailable;
   const status=`<div class="status ${key}">${lab} <span style="color:var(--muted)">· ${help}</span></div>`;
   const body=`<div class="ans-raw">${esc(result.answer)}</div>`;
   const laws=(!unknown && result.searchedLaws&&result.searchedLaws.length)
-    ? `<div class="msg-meta">근거 법령: ${esc(result.searchedLaws.join(", "))}${result.effective_date?" · 시행일 "+esc(result.effective_date):""}</div>`
-    : "";
-  return b+status+body+laws;
+    ? `<div class="msg-meta">근거 법령: ${esc(result.searchedLaws.join(", "))}</div>` : "";
+
+  const choices=result.needs_clarification
+    ? `<div class="choice-box"><div class="choice-title">알고 싶은 내용을 선택하세요</div><div class="choice-list">${questionButtons(result.clarification_options,"choice")}</div></div>` : "";
+  const checklist=(!result.needs_clarification && result.checklist&&result.checklist.length)
+    ? `<div class="action-box"><div class="action-title">지금 확인할 사항</div><ul class="check-list">${result.checklist.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>` : "";
+  const followups=(!result.needs_clarification && result.follow_up_questions&&result.follow_up_questions.length)
+    ? `<div class="follow-wrap"><div class="choice-title">이어서 확인할 수 있어요</div><div class="follow-list">${questionButtons(result.follow_up_questions,"follow")}</div></div>` : "";
+
+  return banners+status+body+laws+choices+checklist+followups;
 }
 
 function renderThread(){
@@ -435,12 +481,13 @@ function renderThread(){
   box.innerHTML=TURNS.map((t,i)=>{
     const user=`<div class="msg-user"><div class="bubble">${esc(t.q)}</div></div>`;
     if(!t.result) return user+`<div class="typing">서울시 조례를 검색하고 답변을 확인하는 중…</div>`;
+    const evidenceButton=(t.result.evidence||[]).length
+      ? `<button class="mini" data-act="evidence" data-i="${i}">근거 보기</button>` : "";
+    const copyButton=t.result.needs_clarification
+      ? "" : `<button class="mini" data-act="copy" data-i="${i}">복사</button>`;
     return user+`<div class="msg-ai${i===ACTIVE?" active":""}" data-i="${i}">
       ${renderAnswerHtml(t.result)}
-      <div class="msg-tools">
-        <button class="mini" data-act="evidence" data-i="${i}">근거 보기</button>
-        <button class="mini" data-act="copy" data-i="${i}">복사</button>
-      </div>
+      ${(evidenceButton||copyButton)?`<div class="msg-tools">${evidenceButton}${copyButton}</div>`:""}
     </div>`;
   }).join("");
   const th=$("thread"); th.scrollTop=th.scrollHeight;
@@ -453,16 +500,20 @@ function renderEvidence(i){
   document.querySelectorAll(".msg-ai").forEach(n=>n.classList.toggle("active", Number(n.dataset.i)===i));
   if(!t||!t.result){ el.innerHTML=`<div class="ev-empty">근거 조항이 여기에 표시됩니다.</div>`; $("evFor").textContent=""; return; }
   $("evFor").textContent="질문: "+(t.q.length>40?t.q.slice(0,40)+"…":t.q);
-  const r=t.result, cites=r.citation||[];
-  if(!cites.length){ el.innerHTML=`<div class="ev-empty">근거 조항이 없습니다. 근거를 찾지 못한 질문입니다.</div>`; return; }
-  el.innerHTML=cites.map((c,k)=>{
+  const r=t.result, evidence=r.evidence||[];
+  if(r.needs_clarification){ el.innerHTML=`<div class="ev-empty">질문 의도를 선택하면 답변과 실제 조문 발췌가 표시됩니다.</div>`; return; }
+  if(!evidence.length){ el.innerHTML=`<div class="ev-empty">답을 뒷받침할 근거 조항을 확정하지 못했습니다.</div>`; return; }
+  el.innerHTML=evidence.map((item,k)=>{
     const meta=[];
-    if(r.effective_date) meta.push("시행 "+esc(r.effective_date));
-    const link=(k===0 && r.source_url)?`<a href="${esc(r.source_url)}" target="_blank" rel="noopener">법제처 원문 보기</a>`:"";
-    const metaLine=[meta.join(" · "), link].filter(Boolean).join(" · ");
+    if(item.effective_date) meta.push("시행 "+esc(item.effective_date));
+    const link=item.source_url?`<a href="${esc(item.source_url)}" target="_blank" rel="noopener">법제처 원문 보기</a>`:"";
+    const metaLine=[meta.join(" · "),link].filter(Boolean).join(" · ");
+    const excerpt=item.excerpt?`<div class="ev-body">${highlightExcerpt(item.excerpt,item.highlights)}</div>`:"";
+    const note=item.is_truncated?`<div class="ev-note">관련 문장을 발췌해 표시했습니다. 전체 내용은 원문에서 확인하세요.</div>`:"";
     return `<div class="ev-card${k===0?" primary":""}">
-      <p class="ev-title"><span class="idx">[${k+1}]</span>${esc(c)}</p>
+      <p class="ev-title"><span class="idx">[${k+1}]</span>${esc(item.citation)}</p>
       ${metaLine?`<div class="ev-meta">${metaLine}</div>`:""}
+      ${excerpt}${note}
     </div>`;
   }).join("");
 }
@@ -486,7 +537,7 @@ async function ask(text){
     if(!BACKEND){ throw new Error("서버에 연결할 수 없습니다"); }
     result = await callBackend(q);
   }catch(e){
-    result = { answer:"서버에 연결할 수 없어 답변하지 못했습니다. ("+e.message+")", citation:[], source_url:"", effective_date:"", verdict:"unavailable", searchedLaws:[] };
+    result = { answer:"서버에 연결할 수 없어 답변하지 못했습니다. ("+e.message+")", citation:[], source_url:"", effective_date:"", verdict:"unavailable", needs_clarification:false, clarification_options:[], evidence:[], checklist:[], follow_up_questions:[], searchedLaws:[] };
   }
 
   if(requestId!==REQUEST_SEQ) return;
@@ -588,8 +639,10 @@ function clearHistory(){
 async function copyTurn(i){
   const t=TURNS[i]; if(!t||!t.result) return;
   const r=t.result;
-  const text=`[질문] ${t.q}\n\n${(r.answer||"").trim()}\n\n근거: ${(r.citation||[]).join(" / ")}${r.source_url?"\n원문: "+r.source_url:""}${r.effective_date?"\n시행일: "+r.effective_date:""}`;
-  try{ await navigator.clipboard.writeText(text); toast("답변을 복사했습니다"); }
+  const evidence=(r.evidence||[]).map((item,n)=>`[${n+1}] ${item.citation}\n${item.excerpt||""}\n원문: ${item.source_url||""}\n시행일: ${item.effective_date||""}`).join("\n\n");
+  const checklist=(r.checklist||[]).length?"\n\n[지금 확인할 사항]\n- "+r.checklist.join("\n- "):"";
+  const text=`[질문] ${t.q}\n\n[답변]\n${(r.answer||"").trim()}${checklist}${evidence?"\n\n[근거]\n"+evidence:""}`;
+  try{ await navigator.clipboard.writeText(text); toast("답변과 근거를 복사했습니다"); }
   catch(_){ toast("복사 실패 — 브라우저 권한을 확인하세요"); }
 }
 function exportHistory(){
@@ -644,6 +697,8 @@ async function init(){
   });
 
   $("threadInner").addEventListener("click",e=>{
+    const suggested=e.target.closest("[data-question]");
+    if(suggested){ ask(suggested.dataset.question); return; }
     const tool=e.target.closest("[data-act]");
     if(tool){ const i=Number(tool.dataset.i); if(tool.dataset.act==="copy") copyTurn(i); else renderEvidence(i); return; }
     const ai=e.target.closest(".msg-ai"); if(ai) renderEvidence(Number(ai.dataset.i));
