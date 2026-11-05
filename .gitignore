@@ -1,0 +1,25 @@
+# --- 비밀/보안 (절대 커밋 금지) ---
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# --- 가상환경 / 캐시 ---
+.venv/
+__pycache__/
+*.pyc
+
+# --- 재생성 가능한 산출물 ---
+data/annex_files/
+data/vectors_*.npy
+results/
+
+# --- 임시/디버그 파일 ---
+conn_result*.txt
+part_*.json
+*.log
+port.txt
+ui_check.txt
+git_check.txt
+ask_check.json
+live_test.json

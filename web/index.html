@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#223a5e" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="서울 자취 조례 도우미" />
+<title>서울 자취 조례 도우미</title>
+<style>
+  :root {
+    --navy: #223a5e;
+    --navy-dark: #1b2e4a;
+    --accent: #a23b3b;
+    --bg: #ffffff;
+    --side: #f7f7f8;
+    --text: #1f2328;
+    --muted: #8a8f99;
+    --line: #e6e6ea;
+    --soft: #f4f4f6;
+    --badge: #e7ebf3;
+    --ok: #1f7a4d;
+    --warn: #b06a1b;
+    --danger: #b3261e;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    font-size: 15px; line-height: 1.7;
+    overflow-x: hidden;
+  }
+  .hidden { display: none !important; }
+
+  .app { display: flex; height: 100vh; height: 100dvh; }
+
+  .topbar { display: none; }
+  .scrim { display: none; }
+
+  .sidebar {
+    width: 220px; flex-shrink: 0; background: var(--side); border-right: 1px solid var(--line);
+    display: flex; flex-direction: column; padding: 16px 12px; gap: 4px;
+  }
+  .brand { font-weight: 800; font-size: 1.05rem; padding: 4px 10px 14px; }
+  .brand .qa { color: var(--accent); }
+  .side-btn {
+    display: flex; align-items: center; justify-content: flex-start; gap: 10px;
+    width: 100%; text-align: left; background: transparent; border: none;
+    padding: 9px 10px; border-radius: 8px; font: inherit; font-size: 0.9rem; color: #33373d;
+    cursor: pointer;
+  }
+  .side-btn:hover { background: #ececef; }
+  .side-btn .ico { width: 18px; text-align: center; }
+  .side-btn .count {
+    margin-left: auto; font-size: 0.72rem; background: var(--navy); color: #fff;
+    border-radius: 999px; padding: 0 7px; line-height: 18px;
+  }
+  .side-sep { height: 1px; background: var(--line); margin: 8px 4px; }
+  .side-cats { padding: 4px 10px; font-size: 0.74rem; color: var(--muted); line-height: 1.9; }
+  .side-cats b { color: #33373d; font-weight: 700; }
+  .side-status { margin-top: auto; font-size: 0.75rem; color: var(--muted); padding: 8px 10px; line-height: 1.5; }
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
+  .dot.on { background: var(--ok); } .dot.off { background: #c9ccd2; }
+
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
+
+  .home {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .home h1 {
+    margin: 0; font-size: 2.6rem; font-weight: 800; letter-spacing: -1px; text-align: center;
+    font-family: "Nanum Myeongjo", "Pretendard", serif;
+  }
+  .home h1 .qa { color: var(--accent); }
+  .home .sub { margin: 8px 0 28px; color: var(--muted); font-size: 0.95rem; text-align: center; }
+  .home-inner { width: 100%; max-width: 680px; }
+
+  .composer {
+    display: flex; align-items: flex-end; gap: 8px; border: 1px solid var(--line);
+    border-radius: 24px; padding: 10px 10px 10px 18px; background: #fff;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  }
+  .composer:focus-within { border-color: #c5ccd8; }
+  .composer textarea {
+    flex: 1; min-width: 0; border: none; outline: none; resize: none; font: inherit; color: var(--text);
+    min-height: 26px; max-height: 160px; padding: 4px 0; background: transparent; line-height: 1.6;
+  }
+  .send {
+    width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--navy); color: #fff;
+    font-size: 1.05rem; cursor: pointer; flex-shrink: 0;
+  }
+  .send:hover { background: var(--navy-dark); }
+  .send:disabled { background: #b9c2d0; cursor: not-allowed; }
+  .composer-meta {
+    display: flex; justify-content: flex-start; align-items: center; gap: 10px;
+    margin-top: 8px; font-size: 0.76rem; color: var(--muted);
+  }
+  .composer-meta .char-count { margin-left: auto; }
+  .char-count.limit { color: var(--danger); font-weight: 700; }
+  .reset-btn {
+    background: #fff; border: 1px solid #e9c9c7; color: var(--danger); border-radius: 8px;
+    padding: 5px 12px; font: inherit; font-size: 0.8rem; cursor: pointer;
+  }
+  .reset-btn:hover { background: #fbe9e8; }
+
+  .suggests { margin-top: 22px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+  .suggest {
+    display: flex; align-items: center; gap: 10px; background: transparent; border: none;
+    padding: 7px 8px; border-radius: 8px; font: inherit; font-size: 0.9rem; color: #4a4f59; cursor: pointer;
+    text-align: left;
+  }
+  .suggest:hover { background: var(--soft); }
+
+  .chat { flex: 1; display: flex; min-height: 0; }
+  .chat-col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .thread { flex: 1; overflow-y: auto; padding: 28px 28px 12px; }
+  .thread-inner { max-width: 760px; margin: 0 auto; }
+  .chat-bottom { padding: 10px 28px 18px; }
+  .chat-bottom .wrap { max-width: 760px; margin: 0 auto; }
+
+  .msg-user { display: flex; justify-content: flex-end; margin: 6px 0 18px; }
+  .msg-user .bubble {
+    background: var(--soft); border-radius: 18px; padding: 10px 16px; max-width: 80%; white-space: pre-wrap;
+  }
+  .msg-ai { margin: 0 0 26px; padding: 4px 6px; border-radius: 10px; cursor: pointer; border: 1px solid transparent; }
+  .msg-ai:hover { border-color: var(--line); }
+  .msg-ai.active { border-color: #cdd5e2; background: #fbfcfe; }
+  .status { font-size: 0.8rem; margin-bottom: 6px; }
+  .status.grounded { color: var(--ok); }
+  .status.unavailable { color: var(--danger); }
+  .banner { border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; font-size: 0.84rem; }
+  .banner.demo { background: #fdf3e3; color: var(--warn); }
+  .banner.withheld { background: #fbe9e8; color: var(--danger); }
+  .ans-block { margin: 0 0 10px; }
+  .ans-raw { white-space: pre-wrap; }
+  .msg-tools { display: flex; justify-content: flex-start; gap: 6px; margin-top: 6px; }
+  .mini {
+    background: #fff; border: 1px solid var(--line); border-radius: 7px; padding: 3px 10px;
+    font: inherit; font-size: 0.76rem; color: #4a4f59; cursor: pointer;
+  }
+  .mini:hover { background: var(--soft); }
+  .msg-meta { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+  .typing { color: var(--muted); font-size: 0.9rem; margin: 0 0 24px 6px; }
+  .disclaimer { color: var(--muted); font-size: 0.74rem; text-align: center; margin-top: 8px; }
+
+  .evidence {
+    width: 380px; flex-shrink: 0; border-left: 1px solid var(--line); background: #fafafb;
+    overflow-y: auto; padding: 22px 20px;
+  }
+  .evidence h2 { margin: 0 0 6px; font-size: 1rem; }
+  .ev-for { font-size: 0.78rem; color: var(--muted); margin-bottom: 14px; }
+  .ev-card { border: 1px solid var(--line); border-radius: 10px; padding: 13px 15px; margin-bottom: 12px; background: #fff; }
+  .ev-card.primary { border: 1.5px solid var(--navy); }
+  .ev-title { font-weight: 700; margin: 0 0 4px; }
+  .ev-title .idx { color: var(--navy); margin-right: 4px; }
+  .ev-meta { color: var(--muted); font-size: 0.78rem; margin-bottom: 4px; }
+  .ev-meta a { color: var(--navy); text-decoration: none; border-bottom: 1px solid var(--navy); }
+  .ev-empty { color: var(--muted); font-size: 0.86rem; }
+
+  @media (max-width: 1000px) {
+    .chat { flex-direction: column; }
+    .evidence { width: auto; border-left: none; border-top: 1px solid var(--line); max-height: 42vh; }
+  }
+
+  @media (max-width: 760px) {
+    body { font-size: 15px; }
+    .topbar {
+      display: flex; align-items: center; gap: 10px;
+      height: 54px; flex-shrink: 0; padding: 0 12px;
+      padding-top: env(safe-area-inset-top);
+      height: calc(54px + env(safe-area-inset-top));
+      background: var(--navy); color: #fff; position: relative; z-index: 30;
+    }
+    .topbar .hamb {
+      width: 40px; height: 40px; border: none; background: transparent; color: #fff;
+      font-size: 1.4rem; cursor: pointer; border-radius: 8px; flex-shrink: 0;
+    }
+    .topbar .hamb:active { background: rgba(255,255,255,0.15); }
+    .topbar .tb-title { font-weight: 800; font-size: 1.05rem; }
+    .topbar .tb-title .qa { color: #ffd0cf; }
+    .topbar .tb-new {
+      margin-left: auto; background: rgba(255,255,255,0.16); border: none; color: #fff;
+      font: inherit; font-size: 0.85rem; padding: 7px 12px; border-radius: 8px; cursor: pointer;
+    }
+    .app { flex-direction: column; }
+    .main, .chat, .thread { min-width: 0; max-width: 100%; }
+    .chat-col { flex: none; width: 100%; min-width: 0; max-width: 100%; }
+    .evidence { flex: none; width: 100%; min-width: 0; max-width: 100%; }
+    .msg-user .bubble { overflow-wrap: anywhere; word-break: break-word; }
+    .sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0; width: 76%; max-width: 300px;
+      z-index: 50; transform: translateX(-105%); transition: transform 0.22s ease;
+      box-shadow: 2px 0 18px rgba(0,0,0,0.18); padding: 18px 14px;
+      padding-top: calc(18px + env(safe-area-inset-top));
+    }
+    .app.menu-open .sidebar { transform: translateX(0); }
+    .scrim {
+      display: block; position: fixed; inset: 0; background: rgba(15,18,24,0.4);
+      z-index: 45; opacity: 0; pointer-events: none; transition: opacity 0.22s;
+    }
+    .app.menu-open .scrim { opacity: 1; pointer-events: auto; }
+    .side-btn { padding: 12px 12px; font-size: 1rem; }
+    .side-sep { margin: 10px 4px; }
+    .home { padding: 20px 16px; justify-content: flex-start; padding-top: 8vh; }
+    .home-inner { max-width: 100%; }
+    .home h1 { font-size: 2rem; }
+    .home .sub { font-size: 0.9rem; margin-bottom: 22px; }
+    .main { min-width: 0; }
+    .thread-inner, .chat-bottom .wrap { max-width: 100%; }
+    .composer { padding: 8px 8px 8px 16px; border-radius: 22px; }
+    .composer textarea { font-size: 16px; }
+    .send { width: 42px; height: 42px; font-size: 1.15rem; }
+    .reset-btn { padding: 7px 14px; }
+    .composer-meta { font-size: 0.72rem; gap: 8px; }
+    .composer-meta span:nth-child(2) { display: none; }
+    .suggest { padding: 11px 10px; font-size: 0.92rem; align-items: flex-start; }
+    .suggest > span:last-child { word-break: keep-all; overflow-wrap: anywhere; }
+    .suggests { width: 100%; }
+    .thread { padding: 16px 14px 8px; }
+    .chat-bottom { padding: 8px 14px calc(12px + env(safe-area-inset-bottom)); }
+    .msg-user .bubble { max-width: 88%; }
+    .ans-block, .ans-raw, .ev-title, .ev-body, .hist-a, .hist-q { overflow-wrap: anywhere; word-break: break-word; }
+    .msg-ai { padding: 4px 2px; }
+    .evidence { max-height: 46vh; padding: 16px 14px calc(16px + env(safe-area-inset-bottom)); }
+    .disclaimer { font-size: 0.7rem; }
+    .overlay { align-items: flex-end; padding: 0; }
+    .modal {
+      max-width: none; border-radius: 16px 16px 0 0; max-height: 90vh;
+      padding: 20px 18px calc(20px + env(safe-area-inset-bottom));
+    }
+    .tbtn { padding: 10px 15px; }
+  }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgba(20,24,32,0.35); display: flex;
+    align-items: center; justify-content: center; z-index: 40; padding: 20px;
+  }
+  .modal {
+    background: #fff; border-radius: 14px; width: 100%; max-width: 560px; max-height: 85vh;
+    overflow: auto; padding: 22px 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  }
+  .modal-head { display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-bottom: 14px; }
+  .modal-head h3 { margin: 0; font-size: 1.05rem; }
+  .modal-head .close { margin-left: auto; }
+  .row { display: flex; justify-content: flex-start; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+  .tbtn {
+    background: #fff; border: 1px solid var(--line); color: #3a3f47; border-radius: 8px;
+    padding: 7px 13px; font: inherit; font-size: 0.84rem; font-weight: 600; cursor: pointer;
+  }
+  .tbtn:hover { background: var(--soft); }
+  .tbtn.primary { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .tbtn.primary:hover { background: var(--navy-dark); }
+  .tbtn.danger { color: var(--danger); border-color: #e9c9c7; }
+  .tbtn.danger:hover { background: #fbe9e8; }
+
+  .hist-item { border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; margin-bottom: 10px; }
+  .hist-q { font-weight: 700; color: var(--navy); }
+  .hist-q .time { font-weight: 400; color: var(--muted); font-size: 0.74rem; margin-left: 6px; }
+  .hist-a { font-size: 0.86rem; color: #3a3f47; white-space: pre-wrap; margin-top: 4px; max-height: 120px; overflow: hidden; }
+  .hist-meta { font-size: 0.74rem; color: var(--muted); margin-top: 6px; }
+  .hist-empty { color: var(--muted); font-size: 0.88rem; }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--navy); color: #fff; padding: 9px 18px; border-radius: 8px;
+    font-size: 0.86rem; opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 60;
+  }
+  .toast.show { opacity: 0.96; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- ===== 모바일 상단 바 ===== -->
+  <header class="topbar">
+    <button class="hamb" id="menuBtn" title="메뉴" aria-label="메뉴 열기">☰</button>
+    <span class="tb-title">서울 자취 <span class="qa">조례 도우미</span></span>
+    <button class="tb-new" id="topNewBtn" type="button">새 대화</button>
+  </header>
+
+  <div class="scrim" id="scrim"></div>
+
+  <!-- ===== 왼쪽 메뉴 ===== -->
+  <aside class="sidebar">
+    <div class="brand">서울 자취 <span class="qa">조례 도우미</span></div>
+    <button class="side-btn" id="newChatBtn" title="새 대화"><span class="ico">✎</span><span class="label">새 대화</span></button>
+    <button class="side-btn" id="historyBtn" title="대화 기록"><span class="ico">💬</span><span class="label">대화 기록</span><span class="count" id="historyCount">0</span></button>
+    <button class="side-btn" id="exportBtn" title="대화 내보내기"><span class="ico">⬇</span><span class="label">대화 내보내기</span></button>
+    <div class="side-sep"></div>
+    <div class="side-cats">
+      <b>자취 생활에 필요한 조례 6종</b><br>
+      🚭 금연 · 🧑 청년 · 🅿️ 주차장<br>
+      🚲 자전거 · 🐶 동물보호 · 🌳 도시공원<br>
+      <span style="color:var(--muted)">서울특별시 · 2026-10-01 시행본</span>
+    </div>
+    <div class="side-status" id="sideStatus">서버 확인 중…</div>
+  </aside>
+
+  <!-- ===== 메인 ===== -->
+  <main class="main">
+    <section class="home" id="homeView">
+      <div class="home-inner">
+        <h1>서울 자취 <span class="qa">조례 도우미</span></h1>
+        <p class="sub">막 자취를 시작한 2030을 위해, 주차·흡연·반려동물·청년지원 같은 생활 속 궁금증을<br>서울시 조례 원문을 근거로 쉽게 풀어드립니다.</p>
+
+        <div class="composer">
+          <textarea id="homeInput" rows="1" maxlength="500" placeholder="예) 우리 원룸 앞에서 담배 피우면 신고할 수 있나요?"></textarea>
+          <button class="send" id="homeSend" title="질문하기">↑</button>
+        </div>
+        <div class="composer-meta">
+          <button class="reset-btn" id="homeReset" type="button">↺ 초기화</button>
+          <span>Enter 질문 · Shift+Enter 줄바꿈</span>
+          <span class="char-count" id="homeCount">0 / 500</span>
+        </div>
+
+        <div class="suggests" id="suggests"></div>
+      </div>
+    </section>
+
+    <section class="chat hidden" id="chatView">
+      <div class="chat-col">
+        <div class="thread" id="thread"><div class="thread-inner" id="threadInner"></div></div>
+        <div class="chat-bottom">
+          <div class="wrap">
+            <div class="composer">
+              <textarea id="chatInput" rows="1" maxlength="500" placeholder="이어서 질문하세요"></textarea>
+              <button class="send" id="chatSend" title="질문하기">↑</button>
+            </div>
+            <div class="composer-meta">
+              <button class="reset-btn" id="chatReset" type="button">↺ 초기화</button>
+              <span>Enter 질문 · Shift+Enter 줄바꿈</span>
+              <span class="char-count" id="chatCount">0 / 500</span>
+            </div>
+            <div class="disclaimer">
+              서울특별시 조례 정보 안내 도구이며 법률 자문이 아닙니다. 중요한 사안은 공식 원문과 전문가를 통해 확인하세요.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="evidence">
+        <h2>근거 조항</h2>
+        <div class="ev-for" id="evFor">답변을 누르면 해당 답변의 근거가 표시됩니다.</div>
+        <div id="evidenceList"><div class="ev-empty">근거 조항이 여기에 표시됩니다.</div></div>
+      </aside>
+    </section>
+  </main>
+</div>
+
+<!-- 대화 기록 모달 -->
+<div class="overlay hidden" id="historyModal">
+  <div class="modal">
+    <div class="modal-head"><h3>💬 대화 기록 <span style="font-weight:400;color:var(--muted);font-size:0.8rem;">(이 브라우저에만 저장)</span></h3><button class="tbtn close" data-close="historyModal">닫기</button></div>
+    <div id="historyList"><div class="hist-empty">아직 기록이 없습니다.</div></div>
+    <div class="row"><button class="tbtn danger" id="clearHistBtn">기록 전체 삭제</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===========================================================================
+   추천 질문 (서울시 조례 6종 기준)
+   =========================================================================== */
+const SUGGESTS = [
+  ["🚭", "집 근처 금연구역에서 담배 피우면 과태료가 얼마예요?"],
+  ["🧑", "서울시 청년 지원은 몇 살까지 받을 수 있나요?"],
+  ["🅿️", "공영주차장에 경차 세우면 요금 할인되나요?"],
+  ["🐶", "유기견 입양하면 동물등록 수수료 내야 하나요?"],
+  ["🚲", "자전거 주차장도 돈 내야 하나요?"],
+  ["🌳", "동네 공원에서 술 마시면 과태료 있나요?"]
+];
+
+const STATUS_TEXT = {
+  grounded:    ["✅ 근거 확인", "서울시 조례 조문에 근거한 답변입니다."],
+  unavailable: ["⛔ 확인 불가", "6종 조례에서 근거를 찾지 못했습니다."]
+};
+
+const $ = id => document.getElementById(id);
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+
+/* ===========================================================================
+   백엔드 연동 — 대회 스타터킷 서버 규격 (/health, /ask)
+   응답: { answer, citation[], source_url, effective_date }
+   =========================================================================== */
+let BACKEND=false;
+async function detectBackend(){
+  try{const r=await fetch("/health",{cache:"no-store"});if(!r.ok)return null;return await r.json();}
+  catch(e){return null;}
+}
+async function callBackend(q){
+  const r=await fetch("/ask",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question:q})});
+  if(!r.ok){throw new Error("서버 오류 "+r.status);}
+  const d=await r.json();
+  const answer=d.answer||"";
+  const unknown=answer.startsWith("확인 불가")||!(d.citation&&d.citation.length);
+  return {
+    answer,
+    citation: d.citation||[],
+    source_url: d.source_url||"",
+    effective_date: d.effective_date||"",
+    verdict: unknown ? "unavailable" : "grounded",
+    searchedLaws: [...new Set((d.citation||[]).map(c => (c.match(/서울특별시[^ ]*(?:조례|규칙)/)||[c])[0]))]
+  };
+}
+
+/* ===========================================================================
+   화면 상태: 홈 ↔ 대화
+   =========================================================================== */
+let TURNS=[]; let ACTIVE=-1; let BUSY=false; let REQUEST_SEQ=0;
+
+function showChat(){ $("homeView").classList.add("hidden"); $("chatView").classList.remove("hidden"); }
+function showHome(){ $("chatView").classList.add("hidden"); $("homeView").classList.remove("hidden"); }
+
+function renderAnswerHtml(result){
+  let b="";
+  const unknown = result.verdict==="unavailable";
+  if(unknown) b+=`<div class="banner withheld">⚠️ 6종 조례에서 근거를 찾지 못했습니다. 다른 표현으로 질문하거나 공식 원문을 확인하세요.</div>`;
+  const key=result.verdict||"unavailable";
+  const [lab,help]=STATUS_TEXT[key]||STATUS_TEXT.unavailable;
+  const status=`<div class="status ${key}">${lab} <span style="color:var(--muted)">· ${help}</span></div>`;
+  const body=`<div class="ans-raw">${esc(result.answer)}</div>`;
+  const laws=(!unknown && result.searchedLaws&&result.searchedLaws.length)
+    ? `<div class="msg-meta">근거 법령: ${esc(result.searchedLaws.join(", "))}${result.effective_date?" · 시행일 "+esc(result.effective_date):""}</div>`
+    : "";
+  return b+status+body+laws;
+}
+
+function renderThread(){
+  const box=$("threadInner");
+  box.innerHTML=TURNS.map((t,i)=>{
+    const user=`<div class="msg-user"><div class="bubble">${esc(t.q)}</div></div>`;
+    if(!t.result) return user+`<div class="typing">서울시 조례를 검색하고 답변을 확인하는 중…</div>`;
+    return user+`<div class="msg-ai${i===ACTIVE?" active":""}" data-i="${i}">
+      ${renderAnswerHtml(t.result)}
+      <div class="msg-tools">
+        <button class="mini" data-act="evidence" data-i="${i}">근거 보기</button>
+        <button class="mini" data-act="copy" data-i="${i}">복사</button>
+      </div>
+    </div>`;
+  }).join("");
+  const th=$("thread"); th.scrollTop=th.scrollHeight;
+}
+
+function renderEvidence(i){
+  ACTIVE=i;
+  const el=$("evidenceList");
+  const t=TURNS[i];
+  document.querySelectorAll(".msg-ai").forEach(n=>n.classList.toggle("active", Number(n.dataset.i)===i));
+  if(!t||!t.result){ el.innerHTML=`<div class="ev-empty">근거 조항이 여기에 표시됩니다.</div>`; $("evFor").textContent=""; return; }
+  $("evFor").textContent="질문: "+(t.q.length>40?t.q.slice(0,40)+"…":t.q);
+  const r=t.result, cites=r.citation||[];
+  if(!cites.length){ el.innerHTML=`<div class="ev-empty">근거 조항이 없습니다. 근거를 찾지 못한 질문입니다.</div>`; return; }
+  el.innerHTML=cites.map((c,k)=>{
+    const meta=[];
+    if(r.effective_date) meta.push("시행 "+esc(r.effective_date));
+    const link=(k===0 && r.source_url)?`<a href="${esc(r.source_url)}" target="_blank" rel="noopener">법제처 원문 보기</a>`:"";
+    const metaLine=[meta.join(" · "), link].filter(Boolean).join(" · ");
+    return `<div class="ev-card${k===0?" primary":""}">
+      <p class="ev-title"><span class="idx">[${k+1}]</span>${esc(c)}</p>
+      ${metaLine?`<div class="ev-meta">${metaLine}</div>`:""}
+    </div>`;
+  }).join("");
+}
+
+/* ===========================================================================
+   질문 처리
+   =========================================================================== */
+async function ask(text){
+  const q=(text||"").trim();
+  if(!q||BUSY) return;
+  BUSY=true; setSendDisabled(true);
+  const requestId=++REQUEST_SEQ;
+
+  showChat();
+  TURNS.push({q, result:null});
+  const idx=TURNS.length-1;
+  renderThread();
+
+  let result;
+  try{
+    if(!BACKEND){ throw new Error("서버에 연결할 수 없습니다"); }
+    result = await callBackend(q);
+  }catch(e){
+    result = { answer:"서버에 연결할 수 없어 답변하지 못했습니다. ("+e.message+")", citation:[], source_url:"", effective_date:"", verdict:"unavailable", searchedLaws:[] };
+  }
+
+  if(requestId!==REQUEST_SEQ) return;
+  TURNS[idx].result=result;
+  renderThread();
+  renderEvidence(idx);
+  addHistory(q, result);
+  BUSY=false; setSendDisabled(false);
+  $("chatInput").focus();
+}
+
+function setSendDisabled(v){ $("homeSend").disabled=v; $("chatSend").disabled=v; }
+
+/* ===========================================================================
+   초기화 / 입력 보조
+   =========================================================================== */
+function resetAll(){
+  REQUEST_SEQ++;
+  TURNS=[]; ACTIVE=-1; BUSY=false; setSendDisabled(false);
+  $("homeInput").value=""; $("chatInput").value="";
+  updateCount("homeInput","homeCount"); updateCount("chatInput","chatCount");
+  autoGrow($("homeInput")); autoGrow($("chatInput"));
+  $("threadInner").innerHTML="";
+  $("evidenceList").innerHTML=`<div class="ev-empty">근거 조항이 여기에 표시됩니다.</div>`;
+  $("evFor").textContent="답변을 누르면 해당 답변의 근거가 표시됩니다.";
+  showHome();
+  $("homeInput").focus();
+  toast("초기화했습니다");
+}
+function updateCount(inputId, countId){
+  const len=$(inputId).value.length;
+  const el=$(countId);
+  el.textContent=`${len} / 500`;
+  el.classList.toggle("limit", len>=480);
+}
+function autoGrow(t){ t.style.height="auto"; t.style.height=Math.min(t.scrollHeight,160)+"px"; }
+function bindComposer(inputId, sendId, countId){
+  const t=$(inputId);
+  t.addEventListener("input",()=>{ updateCount(inputId,countId); autoGrow(t); });
+  t.addEventListener("keydown",e=>{
+    if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){ e.preventDefault(); submitFrom(inputId,countId); }
+  });
+  $(sendId).onclick=()=>submitFrom(inputId,countId);
+}
+function submitFrom(inputId,countId){
+  const t=$(inputId); const q=t.value.trim();
+  if(!q){ t.focus(); return; }
+  t.value=""; updateCount(inputId,countId); autoGrow(t);
+  ask(q);
+}
+
+/* ===========================================================================
+   토스트 / 모달
+   =========================================================================== */
+let _toastTimer=null;
+function toast(msg){
+  const t=$("toast"); t.textContent=msg; t.classList.add("show");
+  clearTimeout(_toastTimer); _toastTimer=setTimeout(()=>t.classList.remove("show"),1800);
+}
+function openModal(id){ $(id).classList.remove("hidden"); }
+function closeModal(id){ $(id).classList.add("hidden"); }
+
+/* ===========================================================================
+   대화 기록 (localStorage, 최근 100건)
+   =========================================================================== */
+const HIST_STORE="seoul_lawqa_history_v1";
+let HISTORY=[];
+function loadHistory(){ try{ HISTORY=JSON.parse(localStorage.getItem(HIST_STORE)||"[]"); }catch(_){ HISTORY=[]; } updateHistoryCount(); }
+function persistHistory(){ HISTORY=HISTORY.slice(-100); try{ localStorage.setItem(HIST_STORE, JSON.stringify(HISTORY)); }catch(_){} updateHistoryCount(); }
+function updateHistoryCount(){ $("historyCount").textContent=String(HISTORY.length); }
+function addHistory(q, result){
+  HISTORY.push({ t:new Date().toISOString(), q, answer:(result.answer||"").trim(),
+    verdict: result.verdict||"unavailable", laws: result.searchedLaws||[], citation: result.citation||[] });
+  persistHistory();
+}
+function renderHistory(){
+  const el=$("historyList");
+  if(!HISTORY.length){ el.innerHTML=`<div class="hist-empty">아직 기록이 없습니다.</div>`; return; }
+  el.innerHTML=HISTORY.map((h,i)=>({...h,_i:i})).reverse().map(h=>{
+    const time=new Date(h.t).toLocaleString("ko-KR",{hour12:false});
+    const vtxt=(STATUS_TEXT[h.verdict]||STATUS_TEXT.unavailable)[0];
+    const laws=h.laws&&h.laws.length?(" · "+esc(h.laws.join(", "))):"";
+    return `<div class="hist-item">
+      <div class="hist-q">Q. ${esc(h.q)}<span class="time">${time}</span></div>
+      <div class="hist-a">${esc(h.answer)}</div>
+      <div class="hist-meta">${vtxt}${laws}</div>
+      <div class="row"><button class="tbtn" data-reuse="${h._i}">이 질문 다시 묻기</button></div>
+    </div>`;
+  }).join("");
+}
+function clearHistory(){
+  if(!confirm("대화 기록을 모두 삭제할까요?")) return;
+  HISTORY=[]; persistHistory(); renderHistory(); toast("대화 기록을 삭제했습니다");
+}
+
+/* ===========================================================================
+   복사 / 내보내기
+   =========================================================================== */
+async function copyTurn(i){
+  const t=TURNS[i]; if(!t||!t.result) return;
+  const r=t.result;
+  const text=`[질문] ${t.q}\n\n${(r.answer||"").trim()}\n\n근거: ${(r.citation||[]).join(" / ")}${r.source_url?"\n원문: "+r.source_url:""}${r.effective_date?"\n시행일: "+r.effective_date:""}`;
+  try{ await navigator.clipboard.writeText(text); toast("답변을 복사했습니다"); }
+  catch(_){ toast("복사 실패 — 브라우저 권한을 확인하세요"); }
+}
+function exportHistory(){
+  if(!HISTORY.length){ toast("내보낼 대화가 없습니다"); return; }
+  const lines=["서울시 조례 Q&A 대화 기록","=".repeat(40),""];
+  HISTORY.forEach((h,i)=>{
+    lines.push(`[${i+1}] ${new Date(h.t).toLocaleString("ko-KR",{hour12:false})}`);
+    lines.push(`Q. ${h.q}`); lines.push(h.answer);
+    if(h.citation&&h.citation.length) lines.push(`근거: ${h.citation.join(" / ")}`);
+    lines.push("-".repeat(40),"");
+  });
+  lines.push("※ 본 기록은 참고용 정보이며 법률 자문이 아닙니다.");
+  const blob=new Blob([lines.join("\n")],{type:"text/plain;charset=utf-8"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`서울시조례QA_대화기록_${new Date().toISOString().slice(0,10)}.txt`;
+  a.click(); URL.revokeObjectURL(a.href);
+  toast("대화 기록을 내보냈습니다");
+}
+
+/* ===========================================================================
+   초기화(init)
+   =========================================================================== */
+async function init(){
+  $("suggests").innerHTML=SUGGESTS.map(([ico,q])=>`<button class="suggest" type="button" data-q="${esc(q)}"><span>${ico}</span><span>${esc(q)}</span></button>`).join("");
+  $("suggests").addEventListener("click",e=>{ const b=e.target.closest(".suggest"); if(b) ask(b.dataset.q); });
+
+  bindComposer("homeInput","homeSend","homeCount");
+  bindComposer("chatInput","chatSend","chatCount");
+  $("homeReset").onclick=resetAll;
+  $("chatReset").onclick=resetAll;
+
+  const app=$("app");
+  const openMenu =()=>app.classList.add("menu-open");
+  const closeMenu=()=>app.classList.remove("menu-open");
+  $("menuBtn").onclick=openMenu;
+  $("scrim").onclick=closeMenu;
+  $("topNewBtn").onclick=resetAll;
+
+  $("newChatBtn").onclick=()=>{ closeMenu(); resetAll(); };
+  $("historyBtn").onclick=()=>{ closeMenu(); renderHistory(); openModal("historyModal"); };
+  $("exportBtn").onclick=()=>{ closeMenu(); exportHistory(); };
+
+  document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>closeModal(b.dataset.close));
+  document.querySelectorAll(".overlay").forEach(o=>o.addEventListener("click",e=>{ if(e.target===o) o.classList.add("hidden"); }));
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape") document.querySelectorAll(".overlay").forEach(o=>o.classList.add("hidden")); });
+  $("clearHistBtn").onclick=clearHistory;
+  $("historyList").addEventListener("click",e=>{
+    const b=e.target.closest("[data-reuse]"); if(!b) return;
+    const h=HISTORY[Number(b.dataset.reuse)]; if(!h) return;
+    closeModal("historyModal"); ask(h.q);
+  });
+
+  $("threadInner").addEventListener("click",e=>{
+    const tool=e.target.closest("[data-act]");
+    if(tool){ const i=Number(tool.dataset.i); if(tool.dataset.act==="copy") copyTurn(i); else renderEvidence(i); return; }
+    const ai=e.target.closest(".msg-ai"); if(ai) renderEvidence(Number(ai.dataset.i));
+  });
+
+  loadHistory();
+  $("homeInput").focus();
+
+  const h=await detectBackend();
+  const side=$("sideStatus");
+  if(h){
+    BACKEND=true;
+    side.innerHTML=`<span class="dot on"></span>실연동<br>Upstage Solar + 법제처 조례`;
+  } else {
+    BACKEND=false;
+    side.innerHTML=`<span class="dot off"></span>서버 미연결<br>서버를 먼저 실행하세요`;
+  }
+
+  const pq=new URLSearchParams(location.search).get("q");
+  if(pq && pq.trim()) ask(pq.trim().slice(0,500));
+}
+document.addEventListener("DOMContentLoaded",init);
+</script>
+</body>
+</html>
