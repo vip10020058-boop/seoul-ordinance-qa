@@ -7,8 +7,19 @@ echo   Run "1_server.bat" first so the server is up.
 echo ============================================================
 echo.
 
-set "CF=C:\Program Files (x86)\cloudflared\cloudflared.exe"
-if not exist "%CF%" goto NOCF
+rem  find cloudflared: project folder -> Program Files -> PATH -> auto download
+set "CF="
+if exist "%~dp0cloudflared.exe" set "CF=%~dp0cloudflared.exe"
+if not defined CF if exist "C:\Program Files (x86)\cloudflared\cloudflared.exe" set "CF=C:\Program Files (x86)\cloudflared\cloudflared.exe"
+if not defined CF if exist "C:\Program Files\cloudflared\cloudflared.exe" set "CF=C:\Program Files\cloudflared\cloudflared.exe"
+if not defined CF for /f "delims=" %%P in ('where cloudflared 2^>nul') do if not defined CF set "CF=%%P"
+if not defined CF (
+  echo [SETUP] cloudflared not found. Downloading to this folder ^(~60MB, first run only^)...
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol='Tls12'; Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe' -OutFile '%~dp0cloudflared.exe'"
+  if exist "%~dp0cloudflared.exe" set "CF=%~dp0cloudflared.exe"
+  echo.
+)
+if not defined CF goto NOCF
 
 echo [1/2] Closing any old tunnels (to avoid address conflicts)...
 taskkill /F /IM cloudflared.exe >nul 2>&1
@@ -60,8 +71,9 @@ powershell -NoProfile -Command "Get-Content -Path '%~dp0_tunnel_raw.log' -Wait -
 goto END
 
 :NOCF
-echo [ERROR] cloudflared not found. Install with:
+echo [ERROR] cloudflared download failed. Check internet, or install with:
 echo   winget install Cloudflare.cloudflared
+echo   or put cloudflared.exe in this folder.
 pause
 
 :END

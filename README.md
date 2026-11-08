@@ -19,7 +19,17 @@
 - **근거 없음**: `{"answer": "확인 불가", "citation": [], "source_url": "", "effective_date": ""}`
 - **제약**: 문항당 90초 이내, 항상 유효 JSON (서버 오류·형식 깨짐 시 0점)
 
-## 빠른 시작 (Windows PowerShell)
+## 가장 쉬운 실행 (Windows, 더블클릭)
+
+1. 저장소를 받습니다 (Code → Download ZIP 후 압축 해제, 또는 `git clone`).
+2. `.env.example`을 복사해 `.env`로 만들고 `UPSTAGE_API_KEY=` 뒤에 키를 입력합니다.
+   (`.env`가 없으면 `1_서버켜기.bat`이 자동으로 만들고 메모장을 열어 줍니다.)
+3. `1_서버켜기.bat` 실행 → 첫 실행 시 Python 설치(없을 때)·가상환경·패키지·임베딩 색인을
+   자동으로 준비한 뒤 서버를 켭니다. `Application startup complete`가 보이면 정상입니다.
+4. `2_공개주소켜기.bat` 실행 → cloudflared가 없으면 자동으로 내려받고 공개 주소를 띄웁니다.
+5. (선택) `3_제출전점검.bat`으로 채점 URL 셀프 점검.
+
+## 수동 실행 (Windows PowerShell)
 
 ```powershell
 py -3 -m venv .venv
