@@ -21,6 +21,13 @@ if not defined CF (
 )
 if not defined CF goto NOCF
 
+rem  wait until the local server answers on port 8000 (otherwise the tunnel shows 502)
+echo [0/2] Checking that the server (1_server bat) is running on port 8000...
+powershell -NoProfile -Command "for($i=0;$i -lt 180;$i++){try{Invoke-WebRequest -UseBasicParsing -TimeoutSec 3 http://127.0.0.1:8000/ | Out-Null; exit 0}catch{if($i -eq 0){Write-Host '      Server not ready yet. Waiting (up to 3 min)... start the 1_ server bat if it is not running.'}; Start-Sleep 1}}; exit 1"
+if errorlevel 1 goto NOSERVER
+echo       Server is up.
+echo.
+
 echo [1/2] Closing any old tunnels (to avoid address conflicts)...
 taskkill /F /IM cloudflared.exe >nul 2>&1
 timeout /t 2 >nul
@@ -68,6 +75,12 @@ echo.
 
 rem  keep showing live tunnel log so the window stays open
 powershell -NoProfile -Command "Get-Content -Path '%~dp0_tunnel_raw.log' -Wait -Tail 5"
+goto END
+
+:NOSERVER
+echo [ERROR] Server on port 8000 is not responding.
+echo   Run 1_서버켜기.bat first and wait for "Application startup complete", then run this again.
+pause
 goto END
 
 :NOCF
