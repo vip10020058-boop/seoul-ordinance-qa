@@ -35,11 +35,31 @@ def find_ordinance(name):
                          "effective": law.findtext("시행일자")})
     if not hits:
         raise SystemExit(f"찾지 못했습니다: {name}")
-    hits.sort(key=lambda h: h["effective"], reverse=True)
-    best = hits[0]
-    if best["effective"] > config.BASE_DATE:
-        print(f"  ⚠ {name}: 최신본 시행일 {best['effective']}가 기준일 {config.BASE_DATE}보다 늦습니다. 연혁 확인 필요")
+
+    # 기준일 당시 시행 중인 버전만 후보로 둡니다.
+    # 검색 결과에 기준일 이후 시행될 개정본이 함께 반환될 수 있으므로
+    # 단순히 시행일이 가장 늦은 항목을 고르면 미래 조문을 잘못 수집할 수 있습니다.
+    try:
+        best = select_ordinance_version(hits, config.BASE_DATE)
+    except ValueError as exc:
+        raise SystemExit(f"{name}: 기준일 {config.BASE_DATE} 이전 또는 당일 시행본을 찾지 못했습니다.") from exc
+
+    future = [h for h in hits if h.get("effective") and h["effective"] > config.BASE_DATE]
+    if future:
+        dates = ", ".join(sorted({h["effective"] for h in future}))
+        print(f"  · {name}: 기준일 이후 시행본({dates})은 제외하고 {best['effective']} 시행본을 선택했습니다.")
     return best
+
+
+def select_ordinance_version(hits, base_date):
+    """기준일 당일 또는 이전에 시행된 버전 중 시행일이 가장 늦은 항목을 고릅니다."""
+    eligible = [
+        h for h in hits
+        if h.get("effective") and h["effective"] <= base_date
+    ]
+    if not eligible:
+        raise ValueError(f"기준일 {base_date} 이전 또는 당일 시행본이 없습니다.")
+    return max(eligible, key=lambda h: h["effective"])
 
 
 def split_paragraphs(body):
