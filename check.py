@@ -113,12 +113,12 @@ def run_full(qs, url=None):
     failed = [row for row in rows
               if row["error"] or row["score"] < 1.0 or not row["format_ok"]]
     if failed:
-        print(f"\\n[FAIL] {len(failed)}/{len(rows)} 문항에서 점검 실패")
+        print(f"\n[FAIL] {len(failed)}/{len(rows)} 문항에서 점검 실패")
         for row in failed:
             print(f"  - {row['id']}: score={row['score']:.2f}, "
                   f"format_ok={row['format_ok']}, error={row['error']}")
         raise SystemExit(1)
-    print(f"\\n[PASS] {len(rows)}/{len(rows)} 문항 점검 통과")
+    print(f"\n[PASS] {len(rows)}/{len(rows)} 문항 점검 통과")
 
 
 if __name__ == "__main__":
