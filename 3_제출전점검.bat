@@ -12,10 +12,18 @@ echo.
 echo Checking: %URL%
 echo.
 ".venv\Scripts\python.exe" -X utf8 check.py --url "%URL%"
+if errorlevel 1 goto CHECK_FAILED
 echo.
-echo ^> A successful script run does NOT prove every answer is correct.
+echo [PASS] All committed sample questions passed the configured checks.
+echo ^> This does not validate answer wording beyond citation/format checks.
 pause
 exit /b 0
+
+:CHECK_FAILED
+echo.
+echo [FAIL] One or more sample questions failed. Review the output above.
+pause
+exit /b 1
 
 :NOURL
 echo No URL entered. Exiting.
