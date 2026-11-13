@@ -94,7 +94,11 @@ py -3 -m venv .venv
 | `config.py` | 대상 조례·모델명·시연 스위치 |
 | `connectivity_test.py` | Chat/Embedding/근거검증/법제처 API 연동 점검 (키 미노출) |
 
-## 개발자 테스트\n\n기준일 버전 선택 회귀 테스트는 `python -m unittest discover -s tests -v`로 실행합니다.\n\n## 베이스라인 대비 변경점
+## 개발자 테스트
+
+기준일 버전 선택 회귀 테스트는 `python -m unittest discover -s tests -v`로 실행합니다.
+
+## 베이스라인 대비 변경점
 
 1. **근거 검증 모델 교체 (필수)** — 기존 `groundedness-check` 전용 모델은 Upstage API
    서빙이 종료되어(2026-08-12) 400 오류를 반환합니다. 그대로 두면 `USE_VERIFY=1`에서 모든
