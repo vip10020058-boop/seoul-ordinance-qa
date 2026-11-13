@@ -108,6 +108,18 @@ def run_full(qs, url=None):
     path.write_text(json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
     print("저장:", path)
 
+    # 문항별 점수가 1.0 미만이거나 형식 검사가 실패했으면
+    # 셀프 점검 프로세스도 실패 코드로 종료해 배치 파일/CI가 실패를 감지하게 합니다.
+    failed = [row for row in rows
+              if row["error"] or row["score"] < 1.0 or not row["format_ok"]]
+    if failed:
+        print(f"\\n[FAIL] {len(failed)}/{len(rows)} 문항에서 점검 실패")
+        for row in failed:
+            print(f"  - {row['id']}: score={row['score']:.2f}, "
+                  f"format_ok={row['format_ok']}, error={row['error']}")
+        raise SystemExit(1)
+    print(f"\\n[PASS] {len(rows)}/{len(rows)} 문항 점검 통과")
+
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
