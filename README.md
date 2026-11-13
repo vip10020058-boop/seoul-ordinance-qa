@@ -13,7 +13,7 @@
 
 ## 대회 규격 요약
 
-- **대상**: 서울특별시 조례 6종(주차장·동물보호·자전거·도시공원·청년·금연), **2026-10-01 시행본**. 자치구(OO구) 조례 인용은 오답.
+- **대상**: 서울특별시 조례 6종(주차장·동물보호·자전거·도시공원·청년·금연), **2026-10-01 기준 시행 중인 버전**. 개별 조례의 실제 시행일 메타데이터는 마지막 개정 시행일에 따라 기준일보다 이전일 수 있습니다. 자치구(OO구) 조례 인용은 오답.
 - **엔드포인트**: `POST /ask`, 요청 `{"question": "..."}`
 - **응답 JSON 4필드**: `answer`, `citation`, `source_url`, `effective_date`
 - **근거 없음**: `{"answer": "확인 불가", "citation": [], "source_url": "", "effective_date": ""}`
@@ -84,7 +84,7 @@ py -3 -m venv .venv
 
 | 파일 | 역할 |
 |---|---|
-| `fetch_ordinances.py` | 법제처 API로 조례 6종 수집, 조·항 분리, 자치구 조례 제외 |
+| `fetch_ordinances.py` | 법제처 API로 기준일 당일 또는 이전 시행본 선택, 조·항 분리, 자치구 조례 제외 |
 | `parse_annex.py` | 별표(요금표)를 Upstage Document Parse로 읽어 표 구조 보존 |
 | `build_index.py` | 조각마다 인용 라벨 부여 + Solar Embedding 색인 |
 | `rag.py` | 검색 → Solar 답변 → **검증** → 대회 JSON 생성 |
@@ -94,7 +94,7 @@ py -3 -m venv .venv
 | `config.py` | 대상 조례·모델명·시연 스위치 |
 | `connectivity_test.py` | Chat/Embedding/근거검증/법제처 API 연동 점검 (키 미노출) |
 
-## 베이스라인 대비 변경점
+## 개발자 테스트\n\n기준일 버전 선택 회귀 테스트는 `python -m unittest discover -s tests -v`로 실행합니다.\n\n## 베이스라인 대비 변경점
 
 1. **근거 검증 모델 교체 (필수)** — 기존 `groundedness-check` 전용 모델은 Upstage API
    서빙이 종료되어(2026-08-12) 400 오류를 반환합니다. 그대로 두면 `USE_VERIFY=1`에서 모든
