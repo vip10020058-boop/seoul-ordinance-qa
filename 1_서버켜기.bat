@@ -77,8 +77,19 @@ rem ------------------------------------------------------------
 rem  3) Embedding index (build once if missing)
 rem ------------------------------------------------------------
 if not exist "data\vectors_paragraph.npy" (
+  echo [SETUP] Parsing ordinance annex tables with Upstage Document Parse...
+  ".venv\Scripts\python.exe" -X utf8 parse_annex.py
+  if errorlevel 1 (
+    echo [WARN] Annex parsing did not complete. The index builder may fall back to source text.
+  )
+  echo.
   echo [SETUP] Building embedding index - data\vectors_paragraph.npy ...
   ".venv\Scripts\python.exe" -X utf8 build_index.py
+  if errorlevel 1 (
+    echo [ERROR] Embedding index build failed. Check the API key, network, and logs above.
+    pause
+    exit /b 1
+  )
   echo.
 )
 
