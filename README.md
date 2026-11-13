@@ -50,8 +50,7 @@ py -3 -m venv .venv
 ```
 
 > 한글이 깨지면 `python` 대신 `-X utf8`을 붙이세요.
-> 이 저장소는 `data/ordinances.json`과 조각(chunks)을 포함합니다. 임베딩(`vectors_*.npy`)과
-> 별표 파싱 결과(`data/annex/`)는 용량·재현성 때문에 제외되어 있으니 2·3단계를 실행해 생성하세요.
+> 이 저장소는 `data/ordinances.json`과 조각(chunks)을 포함합니다. 임베딩(`vectors_*.npy`)은 제외되어 있어 색인을 다시 생성해야 합니다. 별표 파싱 결과는 현재 `data/annex/`에 Markdown 10개가 포함되어 있고, 첫 색인 생성 시 `1_서버켜기.bat`이 `parse_annex.py`를 실행해 누락된 파일을 추가로 변환합니다. Document Parse에 실패한 별표는 색인 생성 시 원문 텍스트로 대체될 수 있으므로 로그를 확인하세요.
 
 ## 최신 자체 점검 결과 (2026-11-13)
 
