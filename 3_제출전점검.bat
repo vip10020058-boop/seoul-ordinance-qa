@@ -3,7 +3,7 @@ chcp 65001 >nul
 cd /d "%~dp0"
 echo ============================================================
 echo   Pre-submit self check (public examples)
-echo   Confirms 0 errors and under 90s per question.
+echo   Runs public-question self-check. Review every score and trap result.
 echo ============================================================
 echo.
 set /p URL="Paste the grading URL (with /ask) and press Enter: "
@@ -13,7 +13,7 @@ echo Checking: %URL%
 echo.
 ".venv\Scripts\python.exe" -X utf8 check.py --url "%URL%"
 echo.
-echo ^> If "0 errors" and all under 90s, you are good to submit.
+echo ^> A successful script run does NOT prove every answer is correct.
 pause
 exit /b 0
 
